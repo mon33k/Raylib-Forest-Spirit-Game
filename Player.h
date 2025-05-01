@@ -12,7 +12,7 @@ struct Player {
     Vector2 position = {100, 300};
     vector<Item> inventory;
     bool hasAllElements[5] = {false, false, false, false, false};
-
+    bool choice[5] = {false, false, false, false, false};
     void addItem(Item item) {
         inventory.push_back(item);
         hasAllElements[item.type] = true;

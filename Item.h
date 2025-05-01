@@ -2,6 +2,10 @@
 #include <string>
 using namespace std;
 
+
+const string ITEM_TYPES[] = { "WATER", "AIR", "FIRE", "EARTH", "METAL" };
+const string ITEM_NAMES[] = {"Water Orb", "Flute", "Torch", "Stone Axe", "Sword"};
+
 struct Item {
     string name;
     int type;

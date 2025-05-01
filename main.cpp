@@ -4,8 +4,9 @@
 #include "Item.h"
 #include "World.h"
 #include "GameState.h"
-
+// #include "Choice.h"
 #include <string>
+#include <string.h>
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -18,7 +19,11 @@ using namespace std;
 // Global variables
 GameState gameState = TITLE;
 const int screenWidth = 1600;
-const int screenHeight = 600;
+const int screenHeight = 800;
+const int inputBoxHeight = 200;
+const int padding = 20;
+string userInput;
+
 // Background layers
 Texture2D background;
 Texture2D midground2;
@@ -28,6 +33,7 @@ Texture2D foreground;
 float scrollingBack = 0.0f;
 float scrollingMid = 0.0f;
 float scrollingFore = 0.0f;
+
 // Setting up scene, ground level, encountering spirits after walking a dist
 const float groundLevel = 400.0f; // ground for player and sprites not to float into the sky
 float distanceWalked = 0.0f;
@@ -36,23 +42,31 @@ bool spiritReady = false;
 // Player player;
 Player player = {"Traveler", 100, {100, 300}};
 string playerName;
+string playerChoice;
+
 bool playerLoaded = true;
 float playerSpeed = 3.0f;
 float blinkTimer = 0.0f;
 bool showUnderscore = true;
 bool nameEntered = false;
+bool isNearSpirit = false;
+bool talkedToSpirit = false;
+
 vector<Spirit> spirits;
 Spirit* activeSpirit = nullptr; // Pointer to the current active spirit
 bool isTalking = false;
 string currentSpiritMessage = "";
+float interactDistance = 40.0f;
+
+
 
 
 Player CreateNewPlayer(string playerName) {
     Player p;
     p.name = playerName;
     p.health = 100;
-    p.position = {100, 300}; // starting position
-    // You could also clear inventory if needed
+    p.position = {100, 300};
+    // Clear inventory:
     return p;
 }
 
@@ -68,8 +82,7 @@ Spirit CreateSpirit(string name, Vector2 position, Elements element) {
 void InitGame() {
     InitWindow(screenWidth, screenHeight, "Spirit Forest - Beginner Game");
     SetTargetFPS(60);
-    // main background color #1c466d
-    // 28 70 109
+
     background = LoadTexture("assets/background.png"); // Or wherever your background.png is
     midground2 = LoadTexture("assets/midground2.png");
     midground1 = LoadTexture("assets/midground1.png");
@@ -81,6 +94,27 @@ void InitGame() {
     spirits.push_back({"Earth Spirit", {700, groundLevel}, EARTH});
     spirits.push_back({"Metal Spirit", {500, groundLevel}, METAL});    
 
+}
+
+void UpdateTextInput() {
+    int key = GetCharPressed();
+    while (key > 0) {
+        if (key >= 32 && key <= 125 && userInput.length() < 12) {
+            userInput += (char)key;
+        }
+        key = GetCharPressed();
+    }
+
+    if (IsKeyPressed(KEY_BACKSPACE) && !userInput.empty()) {
+        userInput.pop_back();
+    }
+
+    // Blinking underscore timer
+    blinkTimer += GetFrameTime();
+    if (blinkTimer >= 0.5f) {
+        showUnderscore = !showUnderscore;
+        blinkTimer = 0.0f;
+    }
 }
 
 void UpdateTitleScreen() {
@@ -114,6 +148,7 @@ void UpdateTitleScreen() {
 // }
 
 void DrawTitleScreen() {
+
     DrawText("Enter your name:", 100, 100, 30, WHITE);
 
     string nameToDisplay = playerName;
@@ -158,11 +193,12 @@ void UpdateGameplay() {
     player.position.y = groundLevel;
 
 
-    // Wrap the scrolling for background
-    if (scrollingBack <= -background.width*2) scrollingBack = 0;
-    if (scrollingMid <= -midground2.width*2) scrollingMid = 0;
-    if (scrollingMid <= -midground1.width*2) scrollingMid = 0;
-    if (scrollingFore <= -foreground.width*2) scrollingFore = 0;
+
+    //scrollingBack -= 0.5f; // scroll speed (adjust as needed)
+    if (scrollingBack <= -background.width) {
+        scrollingBack = 0;
+    }
+
 
     // Check spirit distances
     if (!spiritReady && distanceWalked > 2000.0f) {
@@ -175,17 +211,49 @@ void UpdateGameplay() {
         activeSpirit->position.y = groundLevel; // always keep on ground
     }
     
-
+    // Check distance to spirit
+    // cout << "spirit pos: " << activeSpirit->position.x << " " << activeSpirit->position.y << endl;
+    if (activeSpirit != nullptr && CheckCollisionCircles(player.position, 20, activeSpirit->position, 20)) {
+        isNearSpirit = true;
+    
+    }
     
     
     // Handle talking and picking up items
+    //void TextAppend(char *text, const char *append, int *position);               
+    // Append text at specific position and move cursor!
+    // Draw dialog, etc.
+    if (isNearSpirit) {
+        // char spiritLine[256] = "Spirit: ";
+        // int pos = strlen(spiritLine);
+
+        // const char* newLine = " Welcome, traveler.";
+
+        // TextAppend(spiritLine, newLine, &pos);
+
+        // talkedToSpirit = true;
+        DrawText("Hello Traveler.. ", 20, screenHeight - inputBoxHeight + padding, 24, WHITE);
+        DrawText("New Text here", 20, screenHeight - inputBoxHeight + padding + 30, 24, WHITE);
+
+                // Spirit gives a WATER Orb when talked to
+        // Item waterOrb("Water Orb", WATER, true);
+        // player.addItem(waterOrb);
+    }
+
+
+
+
 }
 
 
 void DrawGameplay() {
-
+        // Wrap the scrolling for background
+    if (scrollingBack <= -background.width*2) scrollingBack = 0;
+    if (scrollingMid <= -midground2.width*2) scrollingMid = 0;
+    if (scrollingMid <= -midground1.width*2) scrollingMid = 0;
+    if (scrollingFore <= -foreground.width*2) scrollingFore = 0;
     // BeginDrawing();
-    Color forestNight = {28, 70, 109, 255}; // your nice #1c466d dark blue
+    Color forestNight = {12, 28, 43, 255}; 
     ClearBackground(forestNight); 
     // Draw background
     DrawTexture(background, (int)scrollingBack, 0, WHITE);
@@ -210,8 +278,32 @@ void DrawGameplay() {
     DrawTexture(foreground, (int)scrollingFore + foreground.width, 0, WHITE);
 
 
-    // Draw dialog, etc.
-    // EndDrawing();
+
+    // Show prompt if near
+    // if (isNearSpirit && !talkedToSpirit) {
+    //     DrawText("Press E to talk", screenWidth/2 - 100, 50, 20, WHITE);
+    // }
+
+    // // After talking
+    // if (talkedToSpirit) {
+    //     DrawText("Spirit: Welcome, traveler...", screenWidth/2 - 150, 100, 20, WHITE);
+
+    //     // Show inventory unlocked
+    //     // for (size_t i = 0; i < player.inventory.size(); i++) {
+    //     //     string itemText = "Acquired: " + player.inventory[i].name;
+    //     //     DrawText(itemText.c_str(), 10, 400 + i * 20, 20, SKYBLUE);
+    //     // }
+    // }
+
+
+    
+    // Rectangle inputBox = {0, screenHeight - inputBoxHeight, screenWidth, inputBoxHeight};
+    // DrawRectangleRec(inputBox, DARKGRAY); // background box
+    // DrawRectangleLinesEx(inputBox, 2, WHITE); // border
+
+    // DrawText("Type something:", 20, screenHeight - inputBoxHeight + padding, 24, WHITE);
+    // DrawText(userInput.c_str(), 220, screenHeight - inputBoxHeight + padding, 24, YELLOW);
+    
 }
 
 
@@ -221,10 +313,11 @@ int main() {
 
     // Setup player, spirits, etc.    
     while (!WindowShouldClose()) {
+
         switch (gameState) {
             case TITLE:
                 if (!playerLoaded)
-                    UpdateTitleScreen();
+                    UpdateTitleScreen();                
                 else
                     gameState = PLAYING; // Skip title screen
                 break;
@@ -240,8 +333,8 @@ int main() {
         }
     
         BeginDrawing();
-        ClearBackground(GREEN);
-    
+        ClearBackground(BLACK); // fallback clear so screen isn't blank
+
         switch (gameState) {
             case TITLE:
                 DrawTitleScreen();
@@ -258,80 +351,10 @@ int main() {
         }
     
         EndDrawing();
+
     }
     
 
     CloseWindow();
     return 0;
 }
-
-
-// int main() {
-//     InitGame();
-
-//     // 🌱 Player setup (use your Player struct now!)
-//     Player player;
-//     player.name = "Traveler";  // Default name for now
-//     player.health = 100;
-//     player.position = { 100, 300 };
-
-//     float playerSpeed = 3.0f;
-
-//     // 🌱 Spirit setup
-//     Vector2 spiritPos = { 600, 300 };
-//     float interactDistance = 40.0f;
-//     bool isNearSpirit = false;
-//     bool talkedToSpirit = false;
-
-//     while (!WindowShouldClose()) {
-//         // 🌱 Movement using player struct
-//         if (IsKeyDown(KEY_RIGHT)) player.position.x += playerSpeed;
-//         if (IsKeyDown(KEY_LEFT))  player.position.x -= playerSpeed;
-//         if (IsKeyDown(KEY_UP))    player.position.y -= playerSpeed;
-//         if (IsKeyDown(KEY_DOWN))  player.position.y += playerSpeed;
-
-//         // Check distance to spirit
-//         float dist = sqrt(pow(player.position.x - spiritPos.x, 2) + pow(player.position.y - spiritPos.y, 2));
-//         isNearSpirit = (dist <= interactDistance);
-
-//         // Interaction
-//         if (isNearSpirit && IsKeyPressed(KEY_E)) {
-//             talkedToSpirit = true;
-
-//             // 🌱 Spirit gives a WATER Orb when talked to
-//             Item waterOrb("Water Orb", WATER, true);
-//             player.addItem(waterOrb);
-//         }
-
-//         // Draw everything
-//         BeginDrawing();
-//         ClearBackground(GREEN); // Forest background
-
-//         // Draw player
-//         DrawCircleV(player.position, 20, BLUE);
-
-//         // Draw spirit
-//         DrawCircleV(spiritPos, 20, YELLOW);
-
-//         // Show prompt if near
-//         if (isNearSpirit && !talkedToSpirit) {
-//             DrawText("Press E to talk", screenWidth/2 - 100, 50, 20, WHITE);
-//         }
-
-//         // After talking
-//         if (talkedToSpirit) {
-//             DrawText("Spirit: Welcome, traveler...", screenWidth/2 - 150, 100, 20, WHITE);
-
-//             // Show inventory unlocked
-//             for (size_t i = 0; i < player.inventory.size(); i++) {
-//                 string itemText = "Acquired: " + player.inventory[i].name;
-//                 DrawText(itemText.c_str(), 10, 400 + i * 20, 20, SKYBLUE);
-//             }
-//         }
-
-//         EndDrawing();
-//     }
-
-//     CloseWindow();
-//     return 0;
-// }
